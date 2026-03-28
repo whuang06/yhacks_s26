@@ -39,9 +39,12 @@ def ingest_file_to_db(file_path, description=None):
             "description_provided": bool(description)
         }
     }
-
-    result = collection.insert_one(document)
-    print(f"Successfully indexed {file_name} (ID: {result.inserted_id})")
+    try:
+        result = collection.insert_one(document)
+        print(f"Successfully indexed {file_name} (ID: {result.inserted_id})")
+    except Exception as e:
+        print(f"Failed to insert document: {e}")
+        raise e
 
 
 if __name__ == "__main__":
