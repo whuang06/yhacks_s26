@@ -48,3 +48,21 @@ def get_multimodal_embedding(file_path, description=None, task_type="RETRIEVAL_D
     except Exception as e:
         print(f"General Error: {e}")
         return None
+
+def get_query_embedding(query_text):
+    """
+    Converts a query to a vector.
+    """
+    try:
+        res = client.models.embed_content(
+            model="gemini-embedding-2-preview",
+            contents=query_text,
+            config={
+                'task_type': 'RETRIEVAL_QUERY',
+                'output_dimensionality': 768
+            }
+        )
+        return res.embeddings[0].values
+    except Exception as e:
+        print(f"Error embedding query: {e}")
+        return None
