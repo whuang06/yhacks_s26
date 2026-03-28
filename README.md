@@ -14,6 +14,7 @@ Multimodal file embeddings (PDF, images, text) with **Google Gemini**, stored in
 | **`create_vector_index.py`** | **One-time** (per index): creates the Atlas **Vector Search** index on the `embedding` field. Not part of the aggregation pipeline. |
 | **`query_elements.py`** | Builds a pipeline (`$vectorSearch` → `$project`) and runs **`collection.aggregate(pipeline)`** — this is where the pipeline executes. |
 | **`remove_elements.py`** | Deletes documents by filename, MIME type, or `_id`. |
+| **`update_element.py`** | **`$set`** updates (e.g. `filepath`, `filename`, nested `metadata.*`) without re-ingesting. |
 | **`mongo_test_connect.py`** | Ping Atlas with `MONGO_URI` to verify connectivity. |
 
 **Database:** `yhacks`  
@@ -95,6 +96,12 @@ export GEMINI_API_KEY='your-key'
 
 **Order note:** You can ingest before or after creating the index; the index must be **READY** before `aggregate()` with `$vectorSearch` returns meaningful hits.
 
+### Updating paths or metadata
+
+You do **not** need to remove and re-add a document just to change **`filepath`**, **`filename`**, or **`metadata`** — use **`update_element.py`** (MongoDB **`$set`**) so the same `embedding` stays attached.
+
+Re-run **`get_multimodal_embedding`** and **`$set` the `embedding` field** only if the **file contents** changed and you want similarity search to reflect the new bytes.
+
 ---
 
 ## How the search pipeline runs
@@ -131,6 +138,7 @@ That happens in `query_elements.py` inside `similarity_search_with_score`: the f
 | `add_element.py` | Single-file ingest example in `__main__`. |
 | `query_elements.py` | Semantic search CLI / `similarity_search_with_score`. |
 | `remove_elements.py` | Delete by filename, MIME type, or id. |
+| `update_element.py` | Patch in place: `update_filepath_by_id`, `update_filepath` (by basename), `update_entries`, … CLI: `python update_element.py <ObjectId> <new_filepath>`. |
 | `mongo_test_connect.py` | Connection smoke test. |
 | `input_embedding_sample_test.py` | Quick test of `get_multimodal_embedding`. |
 
