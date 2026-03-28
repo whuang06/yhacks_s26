@@ -1,0 +1,49 @@
+import os
+import magic
+from google import genai
+from google.genai import types
+from pymongo import MongoClient
+from input_to_embedding import get_multimodal_embedding
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+MONGO_URI = os.getenv("MONGO_URI")
+DB_NAME = "yhacks"
+COLLECTION_NAME = "files"
+
+client = genai.Client(api_key=GEMINI_API_KEY)
+db_client = MongoClient(MONGO_URI)
+collection = db_client[DB_NAME][COLLECTION_NAME]
+
+def ingest_file_to_db(file_path, description=None):
+    """
+    Generates an embedding for a file and stores it in MongoDB 
+    with associated metadata.
+    """
+    if not os.path.exists(file_path):
+        print(f"Error: File not found at {file_path}")
+        return
+
+    file_name = os.path.basename(file_path)
+    mime_type = magic.from_file(file_path, mime=True)
+    
+    embedding = get_multimodal_embedding(file_path, description)
+
+    # Prepare the Document
+    document = {
+        "filename": file_name,
+        "filepath": os.path.abspath(file_path),
+        "file_type": mime_type,
+        "embedding": embedding,
+        "metadata": {
+            "file_size": os.path.getsize(file_path),
+            "description_provided": bool(description)
+        }
+    }
+
+    result = collection.insert_one(document)
+    print(f"Successfully indexed {file_name} (ID: {result.inserted_id})")
+
+
+if __name__ == "__main__":
+    target_file = "/Users/william/yhacks_s26/golem_sample_space_exact_names/5xm98t580u/person_portrait.jpeg"
+    ingest_file_to_db(target_file, description="This is an image of an artist")
