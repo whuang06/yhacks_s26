@@ -12,13 +12,14 @@ Plan JSON (``preview_plan`` / ``execute_plan``): a JSON array of objects:
 - ``{"action": "create_folder", "path": "relative/path"}``
 - ``{"action": "move_file", "from": "a.txt", "to": "dir/a.txt"}`` — optional ``mongo_id`` (24-char
   hex ``_id``) updates that document only; otherwise MongoDB matches on ``filepath`` after the move.
-- ``{"action": "remove_file", "path": "old.txt"}`` — deletes the file on disk and removes matching
-  MongoDB rows (optional ``mongo_id`` to delete one document only). **Not undoable** (no file restore).
+- ``{"action": "remove_file", "path": "old.txt"}`` — moves the file to the **system Trash** (needs
+  ``pip install send2trash``) and removes matching MongoDB rows. Provide ``path`` and/or ``mongo_id``;
+  if only ``mongo_id``, the filesystem path is read from the indexed document. On **macOS** and **Linux**,
+  ``undo_last_action`` can restore the file from Trash and re-index; on other platforms undo may be unavailable.
 - ``{"action": "add_file", "path": "doc.pdf", "description": "optional"}`` — indexes an existing file
   with ``ingest_file_to_db`` (embedding + insert). Undo removes the new MongoDB row only (file stays).
-- ``{"action": "remove_folder", "path": "relative/dir"}`` — recursively deletes the directory on disk
-  and removes MongoDB rows whose ``filepath`` lies under that folder. **Not undoable.** Cannot remove
-  the project root.
+- ``{"action": "remove_folder", "path": "relative/dir"}`` — moves the folder to **Trash** (same as
+  ``remove_file``) and removes MongoDB rows under that path. **Not undoable** via the agent stack.
 
     pip install langchain-core langchain-google-genai langgraph
     python agent.py
@@ -59,11 +60,18 @@ from update_element import update_entries, update_filepath_by_id
 
 import remove_elements as remove_mod
 
+try:
+    from send2trash import send2trash
+except ImportError as _e:  # pragma: no cover
+    send2trash = None  # type: ignore[misc, assignment]
+
 DEFAULT_AGENT_SYSTEM = (
     "You help with file organization and MongoDB vector indexing. "
     "For JSON plans, call execute_plan: it shows a plan preview before running steps. "
     "Use execute_plan(plan_json, dry_run=True) to preview without side effects. "
-    "preview_plan is optional; it duplicates what execute_plan shows first."
+    "preview_plan is optional; it duplicates what execute_plan shows first. "
+    "Removals use the system Trash (send2trash). On macOS/Linux, undo_last_action can restore "
+    "remove_file steps when the tool records an undo batch; do not claim undo worked unless it did."
 )
 
 
@@ -101,6 +109,97 @@ def _normalize_mongo_id(raw: str | None) -> str | None:
         return None
     s = str(raw).strip()
     return s or None
+
+
+def _ensure_send2trash() -> None:
+    if send2trash is None:
+        raise RuntimeError(
+            "send2trash is not installed. Run: pip install send2trash "
+            "(see backend/requirements-agent.txt)"
+        )
+
+
+def _darwin_trash_dir_for_path(source: Path) -> Path:
+    """User Trash directory for a path on macOS (boot volume vs external volumes)."""
+    source = source.resolve()
+    home = Path.home().resolve()
+    try:
+        source.relative_to(home)
+        return home / ".Trash"
+    except ValueError:
+        pass
+    try:
+        if os.stat(source).st_dev == os.stat(home).st_dev:
+            return home / ".Trash"
+    except OSError:
+        pass
+    p = source
+    while p.parent != p:
+        p = p.parent
+    return p / ".Trashes" / str(os.getuid())
+
+
+def _trash_watch_dirs_for_path(source: Path) -> list[Path]:
+    """Directories to snapshot before/after send2trash so we can locate the trashed item."""
+    if sys.platform == "darwin":
+        primary = _darwin_trash_dir_for_path(source)
+        home_trash = Path.home() / ".Trash"
+        if primary.resolve() == home_trash.resolve():
+            return [primary]
+        return [primary, home_trash]
+    if sys.platform.startswith("linux"):
+        xdg_data = os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
+        return [Path(xdg_data) / "Trash" / "files"]
+    return []
+
+
+def _iter_trash_entries(d: Path) -> frozenset[Path]:
+    if not d.is_dir():
+        return frozenset()
+    try:
+        return frozenset(d.iterdir())
+    except OSError:
+        return frozenset()
+
+
+def _send2trash_and_get_trash_item_path(abs_path: str) -> str | None:
+    """Send path to system Trash via send2trash; return absolute path of the item inside Trash, or None."""
+    _ensure_send2trash()
+    src = Path(abs_path).resolve()
+    if not src.exists():
+        raise FileNotFoundError(abs_path)
+    watch_dirs = _trash_watch_dirs_for_path(src)
+    if not watch_dirs:
+        send2trash(str(src))  # type: ignore[misc]
+        return None
+    before: dict[Path, frozenset[Path]] = {d: _iter_trash_entries(d) for d in watch_dirs}
+    send2trash(str(src))  # type: ignore[misc]
+    basename = src.name
+    for d in watch_dirs:
+        new_items = _iter_trash_entries(d) - before.get(d, frozenset())
+        if not new_items:
+            continue
+        if len(new_items) == 1:
+            return str(next(iter(new_items)).resolve())
+        exact = [p for p in new_items if p.name == basename]
+        if len(exact) == 1:
+            return str(exact[0].resolve())
+        return str(max(new_items, key=lambda p: p.stat().st_mtime_ns).resolve())
+    return None
+
+
+def _filepath_from_mongo_id(mid: str) -> str:
+    """Return stored filepath for an indexed document, or raise."""
+    try:
+        oid = ObjectId(mid)
+    except Exception as e:
+        raise ValueError(f"Invalid mongo_id: {mid!r}") from e
+    doc = remove_mod.collection.find_one({"_id": oid}, {"filepath": 1})
+    if not doc or not doc.get("filepath"):
+        raise ValueError(
+            f"No indexed document with _id={mid!r}, or it has no filepath field."
+        )
+    return str(doc["filepath"])
 
 
 def _mongo_sync_after_move(
@@ -149,8 +248,10 @@ def _describe_step(step: dict[str, Any], i: int) -> str:
         return f"{i}. move_file: {step.get('from', '?')} -> {step.get('to', '?')}{extra}"
     if action == "remove_file":
         mid = step.get("mongo_id") or step.get("mongo_object_id")
+        p = step.get("path")
         extra = f" mongo_id={mid!r}" if mid else ""
-        return f"{i}. remove_file: {step.get('path', '?')}{extra}"
+        path_part = p if (p and str(p).strip()) else "(path from DB if mongo_id)"
+        return f"{i}. remove_file: {path_part}{extra}"
     if action == "add_file":
         return f"{i}. add_file: {step.get('path', '?')} desc={step.get('description', '')!r}"
     if action == "remove_folder":
@@ -191,27 +292,56 @@ def _apply_move_file(
     return msg, [undo]
 
 
-def _apply_remove_file(path_str: str, mongo_id: str | None = None) -> tuple[str, list[dict[str, Any]]]:
-    """Delete file on disk and MongoDB rows. Undo not supported (returns empty frags)."""
+def _apply_remove_file(
+    path_str: str | None,
+    mongo_id: str | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
+    """Move file to system Trash (send2trash) and remove MongoDB rows; undo restores from Trash + re-index."""
+    mid = _normalize_mongo_id(mongo_id)
+    if not path_str and mid:
+        path_str = _filepath_from_mongo_id(mid)
+    if not path_str:
+        raise ValueError(
+            "remove_file needs a filesystem path in the plan, or a mongo_id to look up filepath "
+            "from the index."
+        )
     p = _resolve_under_root(path_str)
     if not p.is_file():
         raise FileNotFoundError(f"Not a file or missing: {p}")
-    abs_path = str(p.resolve())
-    mid = _normalize_mongo_id(mongo_id)
-    deleted = 0
     if mid:
         try:
             ObjectId(mid)
         except Exception as e:
             raise ValueError(f"Invalid mongo_id: {mongo_id!r}") from e
-        r = remove_mod.collection.delete_one({"_id": ObjectId(mid)})
+    abs_path = str(p.resolve())
+    trash_item = _send2trash_and_get_trash_item_path(abs_path)
+    deleted = 0
+    if mid:
+        oid = ObjectId(mid)
+        r = remove_mod.collection.delete_one({"_id": oid})
         deleted = r.deleted_count
     else:
         r = remove_mod.collection.delete_many({"filepath": abs_path})
         deleted = r.deleted_count
-    p.unlink()
-    msg = f"Removed file {abs_path}; MongoDB document(s) deleted: {deleted}"
-    return msg, []
+    undo: list[dict[str, Any]] = []
+    if trash_item:
+        undo.append(
+            {
+                "op": "restore_from_system_trash",
+                "trash_path": trash_item,
+                "original_path": abs_path,
+            }
+        )
+        extra = f" Trashed copy: {trash_item}. undo_last_action can restore."
+    else:
+        extra = (
+            " Could not resolve the trashed item path for undo (common on Windows); "
+            "restore manually from Trash if needed."
+        )
+    msg = (
+        f"Moved file to system Trash: {abs_path}; MongoDB document(s) removed: {deleted}.{extra}"
+    )
+    return msg, undo
 
 
 def _apply_add_file(path_str: str, description: str = "") -> tuple[str, list[dict[str, Any]]]:
@@ -241,7 +371,8 @@ def _mongo_delete_files_under_folder(folder_abs: str) -> int:
 
 
 def _apply_remove_folder(path_str: str) -> tuple[str, list[dict[str, Any]]]:
-    """Recursively delete a directory and MongoDB rows for files under it. Not undoable."""
+    """Move directory to Trash and remove MongoDB rows for files under it."""
+    _ensure_send2trash()
     p = _resolve_under_root(path_str)
     root = _fs_root().resolve()
     rp = p.resolve()
@@ -250,8 +381,11 @@ def _apply_remove_folder(path_str: str) -> tuple[str, list[dict[str, Any]]]:
     if rp == root:
         raise ValueError("Refusing to remove the project root directory.")
     n_mongo = _mongo_delete_files_under_folder(str(rp))
-    shutil.rmtree(rp)
-    msg = f"Removed folder {rp} (recursive); MongoDB document(s) deleted: {n_mongo}"
+    send2trash(str(rp))
+    msg = (
+        f"Moved folder to Trash: {rp}; MongoDB document(s) deleted: {n_mongo}. "
+        "Restore from Finder Trash if needed."
+    )
     return msg, []
 
 
@@ -272,10 +406,16 @@ def _execute_one_step(step: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
         return _apply_move_file(str(f), str(t), mongo_id=str(mid) if mid else None)
     if action == "remove_file":
         pth = step.get("path")
-        if not pth:
-            raise ValueError("remove_file requires 'path'.")
         mid = step.get("mongo_id") or step.get("mongo_object_id")
-        return _apply_remove_file(str(pth), mongo_id=str(mid) if mid else None)
+        if not pth and not mid:
+            raise ValueError(
+                "remove_file requires 'path' and/or 'mongo_id' (path can be omitted if mongo_id "
+                "is set — filepath is read from MongoDB)."
+            )
+        return _apply_remove_file(
+            str(pth) if pth else None,
+            mongo_id=str(mid) if mid else None,
+        )
     if action == "add_file":
         pth = step.get("path")
         if not pth:
@@ -325,6 +465,20 @@ def _run_undo_step(u: dict[str, Any]) -> None:
         r = remove_mod.collection.delete_one({"_id": ObjectId(mid)})
         if not r.deleted_count:
             raise RuntimeError(f"No MongoDB document with _id={mid!r} (already undone?)")
+    elif op == "restore_from_system_trash":
+        trash_path = Path(u["trash_path"])
+        original = Path(u["original_path"])
+        if not trash_path.exists():
+            raise FileNotFoundError(f"Undo restore: item not in Trash: {trash_path}")
+        original.parent.mkdir(parents=True, exist_ok=True)
+        if original.exists():
+            raise FileExistsError(f"Undo restore: destination already exists {original}")
+        shutil.move(str(trash_path.resolve()), str(original.resolve()))
+        oid = ingest_file_to_db(str(original.resolve()), None)
+        if oid is None:
+            raise RuntimeError(
+                "Restored file from Trash but re-indexing failed; check logs or re-add the file."
+            )
     else:
         raise ValueError(f"Unknown undo op: {op!r}")
 
@@ -361,6 +515,29 @@ def semantic_file_search(query: str, k: int = 5) -> str:
     return "\n".join(lines)
 
 
+@tool
+def trash_file(path: str = "", mongo_id: str = "") -> str:
+    """Move a file to the **system Trash** (send2trash) and remove its vector row.
+
+    Provide ``path`` under the project root and/or ``mongo_id``. If only ``mongo_id`` is set, the path is read from MongoDB.
+    On macOS/Linux, ``undo_last_action`` may restore the file and re-index when the Trash path was recorded.
+    """
+    p = str(path).strip()
+    m = str(mongo_id).strip()
+    try:
+        msg, frags = _apply_remove_file(
+            p if p else None,
+            mongo_id=m if m else None,
+        )
+    except Exception as e:
+        return f"Failed: {e}"
+    _undo_stack.append(frags)
+    return (
+        msg
+        + f" Undo batch recorded ({len(frags)} atomic step(s)). Stack depth: {len(_undo_stack)}."
+    )
+
+
 def _format_plan_preview(steps: list[dict[str, Any]]) -> str:
     """Human-readable preview for a parsed plan (no side effects)."""
     lines = [
@@ -389,12 +566,25 @@ def _format_plan_preview(steps: list[dict[str, Any]]) -> str:
                     f"   -> move: {a} -> {b} | source exists: {exists} | {mongo_note}"
                 )
             elif act == "remove_file":
-                p = _resolve_under_root(str(step.get("path", "")))
+                p_raw = step.get("path")
                 mid = step.get("mongo_id") or step.get("mongo_object_id")
-                lines.append(
-                    f"   -> delete file: {p} | exists: {p.is_file()} | "
-                    f"MongoDB: {'delete _id=' + repr(mid) if mid else 'delete by filepath'}"
-                )
+                src_note = ""
+                if (not p_raw or not str(p_raw).strip()) and mid:
+                    try:
+                        fp = _filepath_from_mongo_id(str(mid))
+                        src_note = f"path resolved from index: {fp} | "
+                        p = _resolve_under_root(fp)
+                    except Exception as ex:
+                        lines.append(f"   !! {ex}")
+                        p = None
+                else:
+                    p = _resolve_under_root(str(p_raw or ""))
+                if p is not None:
+                    lines.append(
+                        f"   -> move file to system Trash: {p} | {src_note}exists: {p.is_file()} | "
+                        f"MongoDB: {'delete _id=' + repr(mid) if mid else 'delete by filepath'} | "
+                        f"undo: macOS/Linux if Trash path is recorded"
+                    )
             elif act == "add_file":
                 p = _resolve_under_root(str(step.get("path", "")))
                 lines.append(
@@ -405,9 +595,9 @@ def _format_plan_preview(steps: list[dict[str, Any]]) -> str:
                 root = _fs_root().resolve()
                 is_root = p.resolve() == root
                 lines.append(
-                    f"   -> rmtree: {p} | is_dir: {p.is_dir()} | "
+                    f"   -> move folder to system Trash: {p} | is_dir: {p.is_dir()} | "
                     f"MongoDB: delete all rows with filepath under this folder | "
-                    f"refused if project root: {is_root}"
+                    f"refused if project root: {is_root} | undo: no"
                 )
         except Exception as ex:
             lines.append(f"   !! {ex}")
@@ -444,8 +634,9 @@ def execute_plan(plan_json: str, dry_run: bool = False) -> str:
 
     **Always runs the same preview as ``preview_plan`` first**, then executes (unless ``dry_run=True``).
 
-    ``remove_file`` / ``remove_folder`` cannot be reversed via undo (disk deleted). ``add_file`` undo removes only the
-    new MongoDB row. For ``move_file``, set ``mongo_id`` to target one document by ``_id``; else match by ``filepath``.
+    ``remove_file`` uses the system Trash; on macOS/Linux an undo batch may restore from Trash and re-index.
+    ``remove_folder`` is not recorded for undo. ``add_file`` undo removes only the new MongoDB row (file stays).
+    For ``move_file``, set ``mongo_id`` to target one document by ``_id``; else match by ``filepath``.
 
     Set ``dry_run=True`` to only return the preview with no disk or MongoDB changes.
 
@@ -484,7 +675,7 @@ def execute_plan(plan_json: str, dry_run: bool = False) -> str:
 
 @tool
 def undo_last_action() -> str:
-    """Undo the most recent ``execute_plan`` or ``create_folder`` (last batch first, LIFO)."""
+    """Undo the most recent batch from ``execute_plan`` or ``trash_file`` (last batch first, LIFO)."""
     if not _undo_stack:
         return "Nothing to undo."
     batch = _undo_stack.pop()
@@ -501,6 +692,7 @@ def undo_last_action() -> str:
 
 AGENT_TOOLS = [
     semantic_file_search,
+    trash_file,
     preview_plan,
     execute_plan,
     undo_last_action,

@@ -55,5 +55,5 @@ def ingest_file_to_db(file_path, description=None):
 
 
 if __name__ == "__main__":
-    target_file = "/Users/william/yhacks_s26/golem_sample_space_exact_names/5xm98t580u/person_portrait.jpeg"
-    ingest_file_to_db(target_file, description="This is an image of an artist")
+    target_file = "/Users/william/yhacks_s26/test_directory/3vhwp7pn/cat.jpeg"
+    ingest_file_to_db(target_file)

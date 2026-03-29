@@ -1,7 +1,7 @@
 import os
 from add_element import ingest_file_to_db
 
-TARGET_DIRECTORY = "/Users/william/yhacks_s26/exact_names_final"
+TARGET_DIRECTORY = "/Users/william/yhacks_s26/test_directory"
 ALLOWED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg', '.txt', '.md'}
 
 def process_directory(directory_path):
