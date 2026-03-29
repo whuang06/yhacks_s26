@@ -1,0 +1,10 @@
+langgraph
+langchain-core
+langchain-google-genai
+fastapi
+uvicorn[standard]
+pymongo>=4.6
+google-genai>=1.0
+google-api-core>=2.0
+python-magic
+python-dotenv>=1.0

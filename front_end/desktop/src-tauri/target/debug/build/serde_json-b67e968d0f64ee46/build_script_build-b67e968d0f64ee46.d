@@ -1,0 +1,5 @@
+/Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/serde_json-b67e968d0f64ee46/build_script_build-b67e968d0f64ee46.d: /Users/nathanzhang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.149/build.rs
+
+/Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/serde_json-b67e968d0f64ee46/build_script_build-b67e968d0f64ee46: /Users/nathanzhang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.149/build.rs
+
+/Users/nathanzhang/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.149/build.rs:

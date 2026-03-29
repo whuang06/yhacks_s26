@@ -1,0 +1,14 @@
+{
+  "name": "coppergolem-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
+    "build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

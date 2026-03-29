@@ -1,0 +1,762 @@
+:root {
+  --shell-bg: #7a3d28;
+  --panel-bg: #7a3d28;
+  --panel-border: rgba(198, 134, 100, 0.22);
+  --text: #f2ebe3;
+  --text-muted: rgba(242, 235, 227, 0.45);
+  --copper: #c0775a;
+  --copper-light: #d4957a;
+  --terracotta: #b56b52;
+  --terracotta-dark: #8e5344;
+  --highlight: #daa06d;
+  --highlight-bright: #e8be8c;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background: transparent;
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ── Collapsed: sprite only ───────────────────────────────── */
+
+#collapsed-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+#sprite-btn {
+  width: 66px;
+  height: 66px;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  cursor: grab;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#sprite-btn:active {
+  cursor: grabbing;
+}
+
+#sprite-btn:focus,
+#sprite-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.sprite-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  display: block;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  vertical-align: middle;
+  border-radius: 50%;
+}
+
+#sprite-btn:hover {
+  transform: scale(1.1);
+  filter: brightness(1.12);
+}
+
+/* ── Expanded: panel ──────────────────────────────────────── */
+
+#expanded-view {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--shell-bg);
+  box-sizing: border-box;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel-bg);
+  border: none;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+/* ── Panel header (drag region) ───────────────────────────── */
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px 8px;
+  -webkit-app-region: drag;
+  app-region: drag;
+  flex-shrink: 0;
+}
+
+.brand-logo {
+  height: 72px;
+  width: auto;
+  object-fit: contain;
+  flex: 1;
+  pointer-events: none;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  vertical-align: middle;
+}
+
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  transition: background 0.12s;
+}
+
+.btn-icon:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+/* ── Tab bar ──────────────────────────────────────────────── */
+
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  padding: 4px 12px 8px;
+  flex-shrink: 0;
+}
+
+.tab {
+  flex: 1;
+  padding: 6px 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.tab:hover {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tab.active {
+  background: linear-gradient(135deg, rgba(181, 107, 82, 0.45), rgba(192, 119, 90, 0.28));
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(181, 107, 82, 0.25);
+}
+
+/* ── Tab content (shared) ─────────────────────────────────── */
+
+.tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 12px 10px;
+}
+
+/* ── Chat tab ─────────────────────────────────────────────── */
+
+#log {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 80px;
+  padding-bottom: 6px;
+}
+
+/* Message group: tool pills + bubble */
+
+.msg-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 92%;
+}
+
+.msg-group.user {
+  align-self: flex-end;
+}
+
+.msg-group.assistant,
+.msg-group.system {
+  align-self: flex-start;
+}
+
+.bubble {
+  padding: 8px 11px;
+  border-radius: 14px;
+  font-size: 0.84rem;
+  line-height: 1.42;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubble.user {
+  background: linear-gradient(135deg, var(--terracotta-dark), var(--copper));
+  color: #fef1e8;
+  box-shadow: 0 3px 12px rgba(142, 83, 68, 0.4);
+}
+
+.bubble.assistant {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.bubble.system {
+  align-self: center;
+  background: rgba(192, 119, 90, 0.12);
+  border: 1px solid rgba(192, 119, 90, 0.35);
+  font-size: 0.78rem;
+  color: var(--highlight-bright);
+}
+
+/* ── Thinking block (collapsible plan preview) ────────────── */
+
+.thinking-block {
+  align-self: flex-start;
+  max-width: 94%;
+  width: 94%;
+  border-radius: 12px;
+  background: rgba(218, 160, 109, 0.06);
+  border: 1px solid rgba(218, 160, 109, 0.18);
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.3s;
+}
+
+.thinking-block.thinking-accepted {
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(74, 222, 128, 0.05);
+}
+
+.thinking-block.thinking-rejected {
+  border-color: rgba(252, 165, 165, 0.3);
+  background: rgba(252, 165, 165, 0.05);
+}
+
+.thinking-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: var(--highlight-bright);
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.thinking-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.thinking-icon {
+  font-size: 0.82rem;
+}
+
+.thinking-label {
+  flex: 1;
+  text-align: left;
+  font-weight: 550;
+}
+
+.thinking-chevron {
+  font-size: 0.6rem;
+  opacity: 0.5;
+  transition: transform 0.2s;
+}
+
+.thinking-body {
+  overflow-y: auto;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+  max-height: 45vh;
+  opacity: 1;
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.thinking-body.collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.thinking-content {
+  margin: 0;
+  padding: 4px 10px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: rgba(242, 235, 227, 0.78);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Plan accept / reject buttons */
+
+.plan-actions {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px 8px;
+  flex-shrink: 0;
+}
+
+.plan-actions.decided {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.btn-plan {
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: none;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: filter 0.12s, opacity 0.12s;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.btn-plan:disabled {
+  cursor: default;
+}
+
+.btn-accept {
+  background: linear-gradient(135deg, #2f7d52, #4ade80);
+  color: #0a1a10;
+}
+
+.btn-accept:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.btn-reject {
+  background: rgba(252, 165, 165, 0.18);
+  border: 1px solid rgba(252, 165, 165, 0.3);
+  color: #fca5a5;
+}
+
+.btn-reject:hover:not(:disabled) {
+  background: rgba(252, 165, 165, 0.28);
+}
+
+/* Inline code and code blocks inside assistant replies */
+
+.reply-inline-code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 0.8em;
+}
+
+.reply-code {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Thinking dots (loading animation) */
+
+.thinking-dots {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.thinking-dots .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--copper-light);
+  animation: wave-dot 1.4s ease-in-out infinite;
+}
+
+.thinking-dots .dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.thinking-dots .dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes wave-dot {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  30% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+/* ── Chat form ────────────────────────────────────────────── */
+
+#chat-form {
+  flex-shrink: 0;
+}
+
+.input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 6px 6px 6px 12px;
+}
+
+#msg {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #e8eaed;
+  font: inherit;
+  font-size: 0.85rem;
+  resize: none;
+  min-height: 1.6em;
+  max-height: 6rem;
+  outline: none;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+#msg::placeholder {
+  color: rgba(200, 210, 225, 0.4);
+}
+
+.btn-send {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--terracotta), var(--copper-light));
+  color: #1a1210;
+  cursor: pointer;
+  transition: filter 0.12s;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.btn-send:hover {
+  filter: brightness(1.15);
+}
+
+/* ── Files tab ────────────────────────────────────────────── */
+
+.files-search-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.files-search-input {
+  flex: 1;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  color: #e0e4ea;
+  font: inherit;
+  font-size: 0.78rem;
+  outline: none;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.files-search-input::placeholder {
+  color: rgba(200, 210, 225, 0.4);
+}
+
+.files-search-input:focus {
+  border-color: rgba(192, 119, 90, 0.45);
+}
+
+.btn-search {
+  padding: 5px 8px;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.files-hint {
+  font-size: 0.72rem;
+  color: rgba(200, 210, 225, 0.55);
+  line-height: 1.35;
+  margin: 0 0 8px;
+}
+
+.file-toolbar {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e0e4ea;
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  transition: background 0.12s;
+}
+
+.btn-sm:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.file-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 60px;
+}
+
+.file-list li {
+  margin-bottom: 1px;
+}
+
+.file-entry {
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #e0e4ea;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  transition: background 0.1s;
+}
+
+.file-entry:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.file-entry-dir {
+  color: var(--highlight);
+}
+
+.file-entry-file {
+  color: var(--copper-light);
+}
+
+.file-hint,
+.file-empty,
+.file-missing,
+.file-error {
+  font-size: 0.72rem;
+  color: rgba(200, 210, 225, 0.5);
+  margin-top: 6px;
+  line-height: 1.3;
+}
+
+.file-missing {
+  color: var(--highlight);
+}
+
+.file-error {
+  color: #fca5a5;
+}
+
+/* ── Preview tab ──────────────────────────────────────────── */
+
+.preview-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.preview-path {
+  flex: 1;
+  font-size: 0.72rem;
+  color: rgba(200, 210, 225, 0.5);
+  word-break: break-all;
+  min-height: 1rem;
+}
+
+.preview-placeholder {
+  font-size: 0.78rem;
+  color: rgba(200, 210, 225, 0.45);
+  line-height: 1.45;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.preview-body {
+  flex: 1;
+  min-height: 80px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.preview-body.is-hidden {
+  display: none;
+}
+
+.preview-placeholder.is-hidden {
+  display: none;
+}
+
+.preview-text {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+}
+
+.preview-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.preview-pdf {
+  width: 100%;
+  min-height: min(60vh, 500px);
+  flex: 1;
+  border: none;
+  background: rgba(10, 12, 18, 0.5);
+}
+
+.preview-loading,
+.preview-error,
+.preview-binary {
+  padding: 10px;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.preview-error {
+  color: #fca5a5;
+}
+
+.preview-binary {
+  color: var(--highlight);
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Reduced transparency fallback ────────────────────────── */
+
+@media (prefers-reduced-transparency: reduce) {
+  .panel {
+    background: var(--panel-bg);
+  }
+}

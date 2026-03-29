@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CopperGolem",
+  "version": "0.1.0",
+  "identifier": "com.coppergolem.app",
+  "build": {
+    "beforeDevCommand": "bash scripts/dev.sh",
+    "devUrl": "http://127.0.0.1:1420",
+    "frontendDist": "../public"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "CopperGolem",
+        "width": 72,
+        "height": 72,
+        "resizable": false,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "shadow": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' 'unsafe-inline' data:; img-src 'self' data: blob: http://127.0.0.1:8765; frame-src 'self' data: blob:; object-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:8765 http://localhost:8765 http://127.0.0.1:1420 ws://127.0.0.1:1420"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app"],
+    "resources": [
+      "../../server.py",
+      "../../env_bootstrap.py",
+      "../../requirements.txt",
+      "../../../backend/agent.py",
+      "../../../backend/add_element.py",
+      "../../../backend/batch_process.py",
+      "../../../backend/input_to_embedding.py",
+      "../../../backend/query_elements.py",
+      "../../../backend/remove_elements.py",
+      "../../../backend/update_element.py"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}
