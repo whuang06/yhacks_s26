@@ -46,7 +46,7 @@ def similarity_search_with_score(
         },
         {
             "$project": {
-                "_id": 0,
+                "_id": 1,
                 "filename": 1,
                 "file_type": 1,
                 "filepath": 1,
