@@ -227,6 +227,7 @@ def extract_found_files(messages: list) -> list[str]:
 
     out: list[str] = []
     seen: set[str] = set()
+    seen_basenames: set[str] = set()
     for m in recent:
         if not isinstance(m, ToolMessage):
             continue
@@ -235,15 +236,18 @@ def extract_found_files(messages: list) -> list[str]:
             continue
         for mo in _FOUND_PATH_RE.finditer(content):
             p = mo.group(1).strip()
-            if p and p not in seen:
+            basename = p.rsplit("/", 1)[-1] if "/" in p else p
+            if p and p not in seen and basename not in seen_basenames:
                 seen.add(p)
+                seen_basenames.add(basename)
                 out.append(p)
         if not out:
             for rx in (_FOUND_FILE_RE_WITH_ID, _FOUND_FILE_RE_LEGACY):
                 for mo in rx.finditer(content):
                     fname = mo.group(1).strip()
-                    if fname and fname not in seen:
+                    if fname and fname not in seen and fname not in seen_basenames:
                         seen.add(fname)
+                        seen_basenames.add(fname)
                         out.append(fname)
     return out
 
