@@ -46,11 +46,19 @@ def ingest_file_to_db(file_path, description=None):
         }
     }
     try:
-        result = collection.insert_one(document)
-        print(f"Successfully indexed {file_name} (ID: {result.inserted_id})")
-        return result.inserted_id
+        result = collection.update_one(
+            {"filepath": document["filepath"]},
+            {"$set": document},
+            upsert=True,
+        )
+        oid = result.upserted_id
+        if oid:
+            print(f"Successfully indexed {file_name} (ID: {oid})")
+        else:
+            print(f"Updated existing entry for {file_name}")
+        return oid
     except Exception as e:
-        print(f"Failed to insert document: {e}")
+        print(f"Failed to upsert document: {e}")
         raise e
 
 
