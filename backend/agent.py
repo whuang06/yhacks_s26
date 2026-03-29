@@ -25,8 +25,8 @@ Plan JSON (``preview_plan`` / ``execute_plan``): a JSON array of objects:
     python agent.py
 
 **Plans:** ``execute_plan`` always runs the same preview as ``preview_plan`` before executing.
-Use ``dry_run=True`` on ``execute_plan`` for preview only. Other tools (e.g. ``semantic_file_search``)
-do not auto-preview.
+Use ``dry_run=True`` on ``execute_plan`` for preview only. Other tools (e.g. ``semantic_file_search``,
+``ask_about_files`` for direct Q&A on local file contents via Gemini) do not auto-preview.
 
 Add tools: define ``@tool``, append to ``AGENT_TOOLS``, document parameters in the docstring.
 """
@@ -34,12 +34,18 @@ Add tools: define ``@tool``, append to ``AGENT_TOOLS``, document parameters in t
 from __future__ import annotations
 
 import json
+import mimetypes
 import os
 import re
 import shutil
 import sys
 from pathlib import Path
 from typing import Any
+
+try:
+    import magic
+except ImportError:  # pragma: no cover
+    magic = None  # type: ignore[misc, assignment]
 
 # Ensure ``backend/`` is on path when running ``python agent.py`` from any cwd.
 _BACKEND_DIR = Path(__file__).resolve().parent
@@ -70,6 +76,7 @@ DEFAULT_AGENT_SYSTEM = (
     "For JSON plans, call execute_plan: it shows a plan preview before running steps. "
     "Use execute_plan(plan_json, dry_run=True) to preview without side effects. "
     "preview_plan is optional; it duplicates what execute_plan shows first. "
+    "Use ask_about_files to answer questions about one or more local files (paths under the project root). "
     "Removals use the system Trash (send2trash). On macOS/Linux, undo_last_action can restore "
     "remove_file steps when the tool records an undo batch; do not claim undo worked unless it did."
 )
@@ -81,6 +88,10 @@ DEFAULT_AGENT_SYSTEM = (
 
 # All FS tools confine paths under this directory (set YHACKS_FS_ROOT to your project root).
 _undo_stack: list[list[dict[str, Any]]] = []
+
+# ``ask_about_files``: Gemini / LangChain practical limits per request
+_ASK_MAX_FILES = 10
+_ASK_MAX_BYTES_PER_FILE = 100 * 1024 * 1024
 
 
 def _fs_root() -> Path:
@@ -102,6 +113,43 @@ def _resolve_under_root(user_path: str) -> Path:
             f"Path must be under project root {root}. Got: {full}"
         ) from e
     return full
+
+
+def _mime_for_file_path(path: Path) -> str:
+    if magic is not None:
+        try:
+            return magic.from_file(str(path), mime=True)
+        except Exception:
+            pass
+    mt, _ = mimetypes.guess_type(path.name)
+    return mt or "application/octet-stream"
+
+
+def _parse_file_paths_arg(raw: str) -> list[str]:
+    s = raw.strip()
+    if not s:
+        raise ValueError("file_paths is empty")
+    if s.startswith("["):
+        data = json.loads(s)
+        if not isinstance(data, list):
+            raise ValueError("file_paths JSON must be an array of strings")
+        out = [str(x).strip() for x in data if str(x).strip()]
+        if not out:
+            raise ValueError("file_paths array has no paths")
+        return out
+    return [s]
+
+
+def load_google_api_key() -> str:
+    raw = os.environ.get("GEMINI_API_KEY")
+    key = raw.strip() if raw else ""
+    if not key:
+        raise ValueError(
+            "Set GEMINI_API_KEY in the environment before running the agent."
+        )
+    if raw and ("\n" in raw or "\r" in raw):
+        raise ValueError("API key must be a single line with no newlines.")
+    return key
 
 
 def _normalize_mongo_id(raw: str | None) -> str | None:
@@ -516,6 +564,81 @@ def semantic_file_search(query: str, k: int = 5) -> str:
 
 
 @tool
+def ask_about_files(question: str, file_paths: str) -> str:
+    """Read one or more files from disk and answer ``question`` using Gemini (multimodal ``ChatGoogleGenerativeAI``).
+
+    Paths must be under the project root (``YHACKS_FS_ROOT`` or cwd). ``file_paths`` is either:
+    - A JSON array of relative paths, e.g. ``["notes/a.pdf", "img/b.png"]``
+    - A single relative path as plain text, e.g. ``"docs/readme.txt"``
+
+    Up to 10 files per call; each file max 100 MiB. You can attach multiple files in one request.
+    """
+    try:
+        paths = _parse_file_paths_arg(file_paths)
+    except Exception as e:
+        return f"Invalid file_paths: {e}"
+    if len(paths) > _ASK_MAX_FILES:
+        return f"At most {_ASK_MAX_FILES} files per call (got {len(paths)})."
+    q = question.strip()
+    if not q:
+        return "question is empty."
+    try:
+        api_key = load_google_api_key()
+    except ValueError as e:
+        return str(e)
+    model_name = os.environ.get("AGENT_MODEL", "gemini-2.5-flash")
+    llm = ChatGoogleGenerativeAI(
+        model=model_name,
+        temperature=0,
+        google_api_key=api_key,
+    )
+    content: list[dict[str, Any]] = []
+    labels: list[str] = []
+    try:
+        for rel in paths:
+            p = _resolve_under_root(rel)
+            if not p.is_file():
+                raise FileNotFoundError(f"Not a file or missing: {p}")
+            data = p.read_bytes()
+            if len(data) > _ASK_MAX_BYTES_PER_FILE:
+                raise ValueError(
+                    f"File too large (max {_ASK_MAX_BYTES_PER_FILE // (1024 * 1024)} MiB): {p}"
+                )
+            mime = _mime_for_file_path(p)
+            content.append({"type": "media", "mime_type": mime, "data": data})
+            labels.append(f"{rel} ({mime})")
+    except Exception as e:
+        return f"Failed to read files: {e}"
+
+    preamble = (
+        f"The user attached {len(content)} file(s): {', '.join(labels)}.\n"
+        "Answer using the file contents when relevant. If they are not enough, say so.\n\n"
+        f"Question:\n{q}"
+    )
+    parts: list[dict[str, Any]] = [{"type": "text", "text": preamble}]
+    parts.extend(content)
+    try:
+        resp = llm.invoke([HumanMessage(content=parts)])
+    except Exception as e:
+        return f"Gemini request failed: {e}"
+    t = getattr(resp, "text", None)
+    if isinstance(t, str) and t.strip():
+        return t
+    out = resp.content
+    if isinstance(out, str):
+        return out
+    if isinstance(out, list):
+        chunks: list[str] = []
+        for block in out:
+            if isinstance(block, dict) and block.get("type") == "text":
+                chunks.append(str(block.get("text", "")))
+            elif isinstance(block, str):
+                chunks.append(block)
+        return "".join(chunks) if chunks else str(out)
+    return str(out)
+
+
+@tool
 def trash_file(path: str = "", mongo_id: str = "") -> str:
     """Move a file to the **system Trash** (send2trash) and remove its vector row.
 
@@ -692,6 +815,7 @@ def undo_last_action() -> str:
 
 AGENT_TOOLS = [
     semantic_file_search,
+    ask_about_files,
     trash_file,
     preview_plan,
     execute_plan,
@@ -702,18 +826,6 @@ AGENT_TOOLS = [
 # ---------------------------------------------------------------------------
 # Graph + factory
 # ---------------------------------------------------------------------------
-
-
-def load_google_api_key() -> str:
-    raw = os.environ.get("GEMINI_API_KEY")
-    key = raw.strip() if raw else ""
-    if not key:
-        raise ValueError(
-            "Set GEMINI_API_KEY in the environment before running the agent."
-        )
-    if "\n" in raw or "\r" in raw:
-        raise ValueError("API key must be a single line with no newlines.")
-    return key
 
 
 def _make_call_model(llm_with_tools):
