@@ -1,0 +1,16 @@
+/Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/deps/coppergolem_desktop-eff8b1e18be63910.d: src/lib.rs src/backend.rs /Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/485cb41b24825e55a313ba4b4ff1afa31a49f4e23159048e4bac6e7565cac16f /Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/568e9cbfcc666b8899f2e38e165971abe689b1cd7f579af0b24d37fa622ca1d0 /Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/d1f4520677f4716d3a481d2081f20fc4e9a89747c6c1b53333cee79e0b6a26ac
+
+/Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/deps/libcoppergolem_desktop-eff8b1e18be63910.rlib: src/lib.rs src/backend.rs /Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/485cb41b24825e55a313ba4b4ff1afa31a49f4e23159048e4bac6e7565cac16f /Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/568e9cbfcc666b8899f2e38e165971abe689b1cd7f579af0b24d37fa622ca1d0 /Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/d1f4520677f4716d3a481d2081f20fc4e9a89747c6c1b53333cee79e0b6a26ac
+
+/Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/deps/libcoppergolem_desktop-eff8b1e18be63910.rmeta: src/lib.rs src/backend.rs /Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/485cb41b24825e55a313ba4b4ff1afa31a49f4e23159048e4bac6e7565cac16f /Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/568e9cbfcc666b8899f2e38e165971abe689b1cd7f579af0b24d37fa622ca1d0 /Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/d1f4520677f4716d3a481d2081f20fc4e9a89747c6c1b53333cee79e0b6a26ac
+
+src/lib.rs:
+src/backend.rs:
+/Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/485cb41b24825e55a313ba4b4ff1afa31a49f4e23159048e4bac6e7565cac16f:
+/Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/568e9cbfcc666b8899f2e38e165971abe689b1cd7f579af0b24d37fa622ca1d0:
+/Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out/d1f4520677f4716d3a481d2081f20fc4e9a89747c6c1b53333cee79e0b6a26ac:
+
+# env-dep:CARGO_PKG_AUTHORS=
+# env-dep:CARGO_PKG_DESCRIPTION=CopperGolem — Tauri desktop shell for the Python assistant
+# env-dep:CARGO_PKG_NAME=coppergolem_desktop
+# env-dep:OUT_DIR=/Users/nathanzhang/hackathon_s26_files/yhacks_s26/front_end/desktop/src-tauri/target/debug/build/coppergolem_desktop-f5ca8914afbeb3d3/out
