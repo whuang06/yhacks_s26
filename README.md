@@ -1,4 +1,4 @@
-# YHacks 2026 — Copper Golem
+# Sift
 
 Multimodal file embeddings (PDF, images, text) with **Google Gemini**, stored in **MongoDB Atlas**, queried with **Atlas Vector Search** (`$vectorSearch`), plus a **LangGraph + LangChain** chat agent that can search the index, run filesystem plans, trash files, and **ask questions about local file contents** (multimodal Gemini).
 
